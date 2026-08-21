@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  ai-forensics-app:
+    build: .
+    container_name: ai_image_forensics_app
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./models_weights:/app/models_weights
+    restart: unless-stopped

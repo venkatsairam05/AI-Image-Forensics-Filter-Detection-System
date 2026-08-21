@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Streamlit & Local caches
+.streamlit/
+.cache/
+
+# Local Temporary Files
+data/uploads/*
+!data/uploads/.gitkeep
+data/feedback/*.png
+data/processed/*
+
+# SQLite DB (optional local runtime state)
+*.sqlite-journal
