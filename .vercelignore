@@ -1,10 +1,12 @@
-# Ignore datasets and local artifacts from Vercel Serverless bundle
 dataset/
 data/
 tests/
-models_weights/ai_detector_champion_backup*
+models_weights/
 Dockerfile
 docker-compose.yml
 .git/
 .github/
 *.log
+packages.txt
+requirements-full.txt
+requirements-streamlit.txt
