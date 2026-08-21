@@ -91,7 +91,10 @@ class AIDetector:
         path = model_path if model_path else AI_MODEL_PATH
         if path and path.exists():
             try:
-                state = torch.load(path, map_location=self.device)
+                try:
+                    state = torch.load(path, map_location=self.device, weights_only=False)
+                except TypeError:
+                    state = torch.load(path, map_location=self.device)
                 if "model_state_dict" in state:
                     self.model.load_state_dict(state["model_state_dict"], strict=False)
                 else:
