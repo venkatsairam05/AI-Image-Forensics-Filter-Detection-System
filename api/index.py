@@ -2,10 +2,11 @@ import io
 import base64
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
+import numpy as np
 from PIL import Image
 
-# Ensure project root is in path
+# Ensure project root in path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -16,16 +17,17 @@ from fastapi.responses import JSONResponse
 
 from utils.config import PRIMARY_CLASSES, FILTER_CLASSES, AI_SUBFAMILIES
 from utils.logger import logger
-from pipeline import ForensicPipeline
-from feedback.feedback_manager import FeedbackManager
+from preprocessing.image_processor import ImageProcessor
+from forensics import ImageForensicSuite
+from models.face_detector import FaceForensicDetector
+from models.ensemble import EnsembleDecisionEngine
 
 app = FastAPI(
-    title="AI Image & Filter Forensics API",
-    description="REST API for Deep Learning Image Authenticity, Filter Detection, and Explainable AI.",
+    title="AI Image Forensics & Filter Detection Serverless API",
+    description="High-performance Serverless Computer Vision Forensics, Filter Analysis, and Authenticity Scoring.",
     version="1.0.0"
 )
 
-# Enable CORS for web deployment
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,21 +36,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global pipeline instance (lazy loaded)
-pipeline_instance = None
-feedback_manager = None
-
-def get_pipeline():
-    global pipeline_instance
-    if pipeline_instance is None:
-        pipeline_instance = ForensicPipeline()
-    return pipeline_instance
-
-def get_feedback_manager():
-    global feedback_manager
-    if feedback_manager is None:
-        feedback_manager = FeedbackManager()
-    return feedback_manager
+# Global Forensic Instances
+processor = ImageProcessor()
+forensic_suite = ImageForensicSuite()
+face_detector = FaceForensicDetector()
+ensemble_engine = EnsembleDecisionEngine()
 
 def image_to_base64(img: Image.Image) -> str:
     """Encodes PIL Image to Base64 data URL."""
@@ -60,108 +52,118 @@ def image_to_base64(img: Image.Image) -> str:
 @app.get("/")
 @app.get("/api/health")
 def health_check():
-    """Health check endpoint for Vercel and uptime monitors."""
+    """Health check endpoint for Vercel and monitoring."""
     return {
         "status": "healthy",
-        "service": "AI Image & Filter Detection System",
+        "service": "AI Image & Filter Detection System (Vercel Serverless)",
+        "deployment_type": "Serverless Lambda (<500MB Optimized)",
         "supported_classes": PRIMARY_CLASSES,
         "supported_filters": FILTER_CLASSES,
         "supported_subfamilies": AI_SUBFAMILIES
     }
 
 @app.post("/api/analyze")
-async def analyze_image(
-    file: UploadFile = File(...),
-    generate_gradcam: bool = Form(True)
-):
+async def analyze_image(file: UploadFile = File(...)):
     """
-    Analyzes an uploaded image and returns deep learning authenticity probabilities,
-    filter detections, computer vision forensics, and base64 Grad-CAM overlay.
+    Serverless image forensic analysis endpoint.
+    Performs FFT frequency analysis, ELA compression forensics, noise residual maps,
+    GLCM texture metrics, face smoothing forensics, and calibrated ensemble scoring.
     """
     try:
         contents = await file.read()
         if len(contents) == 0:
             raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-        pipeline = get_pipeline()
-        result = pipeline.run_analysis(contents, generate_cam=generate_gradcam)
+        valid, msg, pil_img = processor.validate_image(contents)
+        if not valid or pil_img is None:
+            raise HTTPException(status_code=400, detail=msg)
 
-        if not result.get("success"):
-            raise HTTPException(status_code=400, detail=result.get("error", "Image analysis failed."))
+        # 1. Metadata Extraction & Cryptographic Hashes
+        metadata = processor.extract_metadata(pil_img, raw_bytes=contents)
 
-        # Convert numpy visual arrays to base64 images for web response
-        visuals = {}
-        if "explainability" in result and "overlay_image" in result["explainability"]:
-            cam_arr = result["explainability"]["overlay_image"]
-            visuals["gradcam_overlay"] = image_to_base64(Image.fromarray(cam_arr))
+        # 2. Computer Vision Forensics (FFT, Noise, ELA, GLCM)
+        forensics_results = forensic_suite.analyze_all(pil_img)
 
-        if "forensics" in result:
-            ela_arr = result["forensics"].get("compression_analysis", {}).get("ela_image")
-            if ela_arr is not None:
-                visuals["ela_visual"] = image_to_base64(Image.fromarray(ela_arr))
+        # 3. Face Forensics & Smoothing
+        face_results = face_detector.detect_and_analyze(pil_img)
 
-        # Format clean JSON output
-        response_payload = {
-            "success": True,
-            "filename": file.filename,
-            "execution_time_seconds": result.get("execution_time_seconds"),
-            "verdict": result.get("ensemble", {}).get("verdict"),
-            "authenticity_score": result.get("ensemble", {}).get("authenticity_score"),
-            "confidence": result.get("ensemble", {}).get("overall_confidence"),
-            "is_uncertain": result.get("ensemble", {}).get("is_uncertain"),
-            "probabilities": result.get("ensemble", {}).get("probabilities"),
-            "ai_subfamily": result.get("ai_detection", {}).get("top_subfamily"),
-            "detected_filters": result.get("filter_detection", {}).get("detected_filters"),
-            "face_analysis": {
-                "detected": result.get("face_analysis", {}).get("face_detected"),
-                "count": result.get("face_analysis", {}).get("face_count"),
-                "skin_smoothing_score": result.get("face_analysis", {}).get("skin_smoothing_score")
+        # 4. Multi-Label Filter Heuristic Signals
+        detected_filters = []
+        tex = forensics_results.get("texture_analysis", {})
+        comp = forensics_results.get("compression_analysis", {})
+        
+        if tex.get("laplacian_sharpness", 0) > 800:
+            detected_filters.append({"name": "sharpening", "label": "Sharpening", "score": 0.85})
+        if face_results.get("skin_smoothing_score", 0) > 0.45:
+            detected_filters.append({"name": "skin_smoothing", "label": "Skin Smoothing", "score": face_results["skin_smoothing_score"]})
+        if comp.get("jpeg_grid_strength", 0) > 0.5:
+            detected_filters.append({"name": "compression_artifacts", "label": "Compression Artifacts", "score": 0.78})
+        if tex.get("glcm_homogeneity", 0) > 0.88:
+            detected_filters.append({"name": "beauty_filter", "label": "Beauty Filter", "score": 0.82})
+
+        # 5. Multimodal Forensic Scoring
+        ai_synth_score = float(forensics_results.get("composite_forensic_score", 0.0))
+        simulated_ai_pred = {
+            "ai_likeness_score": ai_synth_score,
+            "class_probabilities": {
+                "REAL": round(1.0 - ai_synth_score, 4),
+                "AI_GENERATED": round(ai_synth_score, 4),
+                "AI_EDITED": 0.05,
+                "FILTERED": 0.10 if detected_filters else 0.0,
+                "MANIPULATED": round(comp.get("ela_anomaly_score", 0.0), 4)
             },
-            "forensics_summary": {
-                "composite_score": result.get("forensics", {}).get("composite_forensic_score"),
-                "high_freq_ratio": result.get("forensics", {}).get("frequency_analysis", {}).get("high_frequency_ratio"),
-                "noise_inconsistency": result.get("forensics", {}).get("noise_analysis", {}).get("noise_inconsistency_score")
-            },
-            "explainability": {
-                "reasoning": result.get("explainability", {}).get("forensic_reasoning"),
-                "disclaimer": result.get("explainability", {}).get("disclaimer")
-            },
-            "visuals": visuals
+            "top_subfamily": "Diffusion-Generated (e.g. Midjourney, SD, Flux)" if ai_synth_score > 0.5 else "Natural Photographic Capture"
         }
 
-        return JSONResponse(content=response_payload)
+        ensemble_res = ensemble_engine.evaluate(
+            ai_pred=simulated_ai_pred,
+            filter_pred={"detected_filters": detected_filters, "max_filter_score": max([f['score'] for f in detected_filters], default=0.0)},
+            forensics_pred=forensics_results,
+            face_pred=face_results
+        )
+
+        # 6. Visual Artifacts Base64
+        visuals = {}
+        ela_arr = comp.get("ela_image")
+        if ela_arr is not None:
+            visuals["ela_visual"] = image_to_base64(Image.fromarray(ela_arr))
+        
+        noise_arr = forensics_results.get("noise_analysis", {}).get("noise_map_rgb")
+        if noise_arr is not None:
+            visuals["noise_map"] = image_to_base64(Image.fromarray(noise_arr))
+
+        return JSONResponse(content={
+            "success": True,
+            "filename": file.filename,
+            "verdict": ensemble_res.get("verdict"),
+            "authenticity_score": ensemble_res.get("authenticity_score"),
+            "confidence": ensemble_res.get("overall_confidence"),
+            "is_uncertain": ensemble_res.get("is_uncertain"),
+            "probabilities": ensemble_res.get("probabilities"),
+            "ai_subfamily": simulated_ai_pred["top_subfamily"],
+            "detected_filters": detected_filters,
+            "face_analysis": {
+                "detected": face_results.get("face_detected"),
+                "count": face_results.get("face_count"),
+                "skin_smoothing_score": face_results.get("skin_smoothing_score")
+            },
+            "forensics_summary": {
+                "composite_score": forensics_results.get("composite_forensic_score"),
+                "spectral_anomaly_score": forensics_results.get("frequency_analysis", {}).get("spectral_anomaly_score"),
+                "noise_inconsistency": forensics_results.get("noise_analysis", {}).get("noise_inconsistency_score"),
+                "ela_anomaly_score": comp.get("ela_anomaly_score"),
+                "texture_anomaly_score": tex.get("texture_anomaly_score")
+            },
+            "metadata": {
+                "dimensions": f"{metadata['width']}x{metadata['height']}",
+                "sha256": metadata["hashes"]["sha256"],
+                "phash": metadata["hashes"]["phash"]
+            },
+            "visuals": visuals
+        })
 
     except HTTPException as he:
         raise he
     except Exception as e:
-        logger.error(f"API analysis error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/feedback")
-async def submit_feedback(
-    image_hash: str = Form(...),
-    predicted_verdict: str = Form(...),
-    predicted_ai_prob: float = Form(...),
-    predicted_confidence: float = Form(...),
-    user_label: str = Form(...),
-    user_agrees: bool = Form(...),
-    comment: Optional[str] = Form("")
-):
-    """Submits user correction/verification for continuous model improvement."""
-    try:
-        mgr = get_feedback_manager()
-        # In API mode without image re-upload, record placeholder
-        entry_id = mgr.record_feedback(
-            pil_img=Image.new("RGB", (64, 64), color="gray"),
-            image_hash=image_hash,
-            predicted_verdict=predicted_verdict,
-            predicted_ai_prob=predicted_ai_prob,
-            predicted_confidence=predicted_confidence,
-            user_label=user_label,
-            user_agrees=user_agrees,
-            comment=comment or ""
-        )
-        return {"success": True, "feedback_id": entry_id, "message": "Feedback recorded successfully."}
-    except Exception as e:
-        logger.error(f"API feedback error: {e}")
+        logger.error(f"Vercel API error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

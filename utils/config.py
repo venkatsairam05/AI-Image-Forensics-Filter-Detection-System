@@ -1,5 +1,4 @@
 import os
-import torch
 from pathlib import Path
 
 # Base Paths
@@ -11,12 +10,18 @@ PROCESSED_DIR = DATA_DIR / "processed"
 MODELS_WEIGHTS_DIR = BASE_DIR / "models_weights"
 DATASET_DIR = BASE_DIR / "dataset"
 
-# Ensure runtime directories exist
-for d in [DATA_DIR, UPLOADS_DIR, FEEDBACK_DIR, PROCESSED_DIR, MODELS_WEIGHTS_DIR, DATASET_DIR]:
-    d.mkdir(parents=True, exist_ok=True)
+# Ensure runtime directories exist (fail-safe for read-only serverless)
+try:
+    for d in [DATA_DIR, UPLOADS_DIR, FEEDBACK_DIR, PROCESSED_DIR, MODELS_WEIGHTS_DIR, DATASET_DIR]:
+        d.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
 
-# Hardware Configuration
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+try:
+    import torch
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+except ImportError:
+    DEVICE = "cpu"
 NUM_WORKERS = 0 if os.name == "nt" else 2
 
 # Core Classification Labels

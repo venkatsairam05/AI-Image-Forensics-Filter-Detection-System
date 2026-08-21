@@ -5,8 +5,6 @@ from typing import Dict, Any, Tuple, Optional, Union
 import numpy as np
 import cv2
 from PIL import Image, ExifTags, ImageOps
-import torch
-import torchvision.transforms as T
 
 from utils.config import IMG_SIZE, IMAGENET_MEAN, IMAGENET_STD, DEVICE
 from utils.logger import logger
@@ -16,11 +14,18 @@ class ImageProcessor:
 
     def __init__(self, target_size: int = IMG_SIZE):
         self.target_size = target_size
-        self.tensor_transform = T.Compose([
-            T.Resize((target_size, target_size), interpolation=T.InterpolationMode.BILINEAR),
-            T.ToTensor(),
-            T.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
-        ])
+        self._tensor_transform = None
+
+    @property
+    def tensor_transform(self):
+        if self._tensor_transform is None:
+            import torchvision.transforms as T
+            self._tensor_transform = T.Compose([
+                T.Resize((self.target_size, self.target_size), interpolation=T.InterpolationMode.BILINEAR),
+                T.ToTensor(),
+                T.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
+            ])
+        return self._tensor_transform
 
     def validate_image(self, file_source: Union[str, Path, bytes, io.BytesIO, Image.Image]) -> Tuple[bool, Optional[str], Optional[Image.Image]]:
         """
@@ -178,7 +183,7 @@ class ImageProcessor:
         diff = pixels[:, 1:] > pixels[:, :-1]
         return "".join(["1" if b else "0" for b in diff.flatten()])
 
-    def to_tensor(self, pil_img: Image.Image, device: str = DEVICE) -> torch.Tensor:
+    def to_tensor(self, pil_img: Image.Image, device: str = DEVICE) -> Any:
         """Transforms PIL Image into a normalized 4D PyTorch tensor (1, 3, H, W)."""
         tensor = self.tensor_transform(pil_img)
         return tensor.unsqueeze(0).to(device)
