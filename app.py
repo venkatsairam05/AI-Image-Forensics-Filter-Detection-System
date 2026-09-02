@@ -313,65 +313,6 @@ st.markdown("""
 <div class="orb orb-3"></div>
 """, unsafe_allow_html=True)
 
-# Cinematic JS — animated metric counters + stagger reveals
-st.markdown("""
-<script>
-(function () {
-    try {
-        function animateValue(el, target) {
-            var dur = 900, start = null;
-            var numeric = parseFloat(String(target).replace(/[^0-9.-]/g, "")) || 0;
-            var suffix = String(target).replace(/[0-9.,%]+/g, "").trim();
-            function tick(ts) {
-                if (!start) start = ts;
-                var p = Math.min((ts - start) / dur, 1);
-                var eased = 1 - Math.pow(1 - p, 3);
-                var val = numeric * eased;
-                var txt = (Number.isInteger(numeric) ? Math.round(val).toString() : val.toFixed(1)) + (suffix ? " " + suffix : "");
-                el.textContent = txt;
-                if (p < 1) requestAnimationFrame(tick);
-            }
-            requestAnimationFrame(tick);
-        }
-
-        var seen = new WeakSet();
-        function wireCounters() {
-            document.querySelectorAll('[data-testid="stMetricValue"]').forEach(function (el) {
-                if (seen.has(el)) return;
-                seen.add(el);
-                var target = el.textContent;
-                if (!target || /^[A-Za-z]/.test(target)) return;
-                try {
-                    animateValue(el, target);
-                } catch (e) {}
-            });
-        }
-
-        function wireReveals() {
-            var col = document.querySelector('[data-testid="stMain"]')
-                        || document.querySelector('.block-container');
-            if (!col) return;
-            col.querySelectorAll(':scope > div').forEach(function (el, i) {
-                if (getComputedStyle(el).animationName === 'none' || el.getAttribute('data-rv')) return;
-                el.setAttribute('data-rv', '1');
-                el.style.animation = 'fadeUp .6s ease ' + (i * 0.06) + 's both';
-            });
-        }
-
-        var t = null;
-        new MutationObserver(function () {
-            clearTimeout(t);
-            t = setTimeout(function () {
-                try { wireCounters(); wireReveals(); } catch (e) {}
-            }, 120);
-        }).observe(document.body, { childList: true, subtree: true });
-
-        setTimeout(function () { try { wireCounters(); wireReveals(); } catch (e) {} }, 400);
-    } catch (e) {}
-})();
-</script>
-""", unsafe_allow_html=True)
-
 # Cache Pipeline Instance in Streamlit Session
 @st.cache_resource
 def load_pipeline():
