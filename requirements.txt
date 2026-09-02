@@ -1,3 +1,8 @@
+# CPU-only PyTorch (prefer CPU wheels to stay within platform limits)
+--index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://pypi.org/simple
+torch>=2.0.0
+torchvision>=0.15.0
 streamlit>=1.30.0
 opencv-python-headless>=4.8.0
 pillow>=10.0.0

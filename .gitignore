@@ -27,7 +27,8 @@ wheels/
 *.egg
 
 # Streamlit & Local caches
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml
 .cache/
 
 # Local Temporary Files

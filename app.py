@@ -30,55 +30,346 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for Modern Dark/Light Forensic Dashboard
+# ─────────────────────────────────────────────────────────────
+# CINEMATIC FORENSIC UI — animated glassmorphism design system
+# ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.2rem;
-        font-weight: 800;
-        letter-spacing: -0.5px;
-        margin-bottom: 0.2rem;
-    }
-    .sub-header {
-        font-size: 1.05rem;
-        color: #94a3b8;
-        margin-bottom: 1.5rem;
-    }
-    .verdict-banner {
-        padding: 1.2rem 1.5rem;
-        border-radius: 12px;
-        color: white;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .metric-card {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        padding: 1rem;
-        text-align: center;
-    }
-    .filter-badge {
-        display: inline-block;
-        background: #3b82f6;
-        color: white;
-        padding: 0.25rem 0.65rem;
-        border-radius: 9999px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin-right: 0.4rem;
-        margin-bottom: 0.4rem;
-    }
-    .disclaimer-box {
-        background: rgba(245, 158, 11, 0.1);
-        border-left: 4px solid #f59e0b;
-        padding: 0.8rem 1rem;
-        border-radius: 4px;
-        font-size: 0.85rem;
-        color: #fcd34d;
-        margin-top: 1rem;
-    }
+/* Animated aurora background */
+[data-testid="stAppViewContainer"] {
+    background:
+        radial-gradient(1200px 600px at 12% -10%, rgba(109, 92, 255, 0.22), transparent 60%),
+        radial-gradient(1000px 500px at 100% 0%, rgba(0, 212, 255, 0.16), transparent 55%),
+        radial-gradient(900px 700px at 60% 110%, rgba(255, 78, 205, 0.14), transparent 60%),
+        linear-gradient(160deg, #0b0f1a 0%, #0c1122 45%, #0a0e1c 100%);
+    background-attachment: fixed;
+}
+[data-testid="stHeader"] { background: rgba(11, 15, 26, 0.55); backdrop-filter: blur(8px); }
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, rgba(16, 22, 43, 0.9), rgba(11, 15, 26, 0.95));
+    border-right: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(14px);
+}
+[data-testid="stSidebar"]::before {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+    background: linear-gradient(90deg, #6d5cff, #00d4ff, #ff4ecd, #6d5cff);
+    background-size: 300% 100%;
+    animation: gradient-x 6s linear infinite;
+}
+
+/* Floating animated orbs */
+.orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: 0;
+}
+.orb-1 { width: 420px; height: 420px; left: -120px; top: 8%;  background: #6d5cff; animation: float-a 16s ease-in-out infinite; }
+.orb-2 { width: 360px; height: 360px; right: -100px; top: 40%; background: #00d4ff; animation: float-b 20s ease-in-out infinite; }
+.orb-3 { width: 300px; height: 300px; left: 38%; bottom: -140px; background: #ff4ecd; animation: float-c 24s ease-in-out infinite; }
+
+@keyframes float-a { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(60px,40px) scale(1.15)} }
+@keyframes float-b { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-70px,-50px) scale(1.2)} }
+@keyframes float-c { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(40px,-60px) scale(1.1)} }
+
+@keyframes gradient-x { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+
+/* Headers — animated gradient text */
+.main-header {
+    font-size: 2.4rem;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    margin-bottom: 0.2rem;
+    background: linear-gradient(90deg, #a78bfa, #22d3ee, #f0abfc, #a78bfa);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: gradient-x 8s linear infinite;
+    filter: drop-shadow(0 4px 22px rgba(139, 92, 246, 0.35));
+}
+.sub-header {
+    font-size: 1.05rem;
+    color: #94a3b8;
+    margin-bottom: 1.5rem;
+    animation: fadeUp .6s ease both;
+}
+
+/* Verdict banner — animated gradient + shine sweep */
+.verdict-banner {
+    position: relative;
+    overflow: hidden;
+    padding: 1.4rem 1.6rem;
+    border-radius: 16px;
+    color: white;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(255,255,255,0.18);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.06);
+    animation: banner-in .7s cubic-bezier(.2,.9,.3,1.2) both;
+}
+.verdict-banner::before {
+    content: ""; position: absolute; top: 0; left: -120%;
+    width: 60%; height: 100%;
+    background: linear-gradient(105deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform: skewX(-20deg);
+    animation: shine 3.2s ease-in-out infinite;
+}
+.verdict-banner::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+    background-size: 300% 100%;
+    animation: gradient-x 6s linear infinite;
+}
+@keyframes banner-in { from{opacity:0; transform:translateY(-14px) scale(.97)} to{opacity:1; transform:translateY(0) scale(1)} }
+@keyframes shine { 0%,55%{left:-120%} 100%{left:130%} }
+
+/* Metric cards — pulsing glass, hover lift */
+[data-testid="stMetric"] {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 0.9rem 1rem;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+    animation: fadeUp .6s ease both;
+}
+[data-testid="stMetric"]:hover {
+    transform: translateY(-4px) scale(1.02);
+    border-color: rgba(167,139,250,0.6);
+    box-shadow: 0 16px 40px rgba(109,92,255,0.28);
+}
+[data-testid="stMetricValue"] {
+    background: linear-gradient(90deg, #a78bfa, #22d3ee);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 800;
+}
+[data-testid="stMetricLabel"] { color: #94a3b8; font-weight: 600; }
+
+/* Filter badges — gradient pulse */
+.filter-badge {
+    display: inline-block;
+    padding: 0.35rem 0.85rem;
+    border-radius: 9999px;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 0.4rem;
+    margin-bottom: 0.4rem;
+    background: linear-gradient(120deg, #6d5cff, #8b5cf6, #00d4ff);
+    background-size: 220% 100%;
+    animation: gradient-x 5s linear infinite, badge-in .5s ease both;
+    box-shadow: 0 4px 16px rgba(109,92,255,0.4);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+@keyframes badge-in { from{opacity:0; transform:scale(.6)} to{opacity:1; transform:scale(1)} }
+
+/* Buttons — gradient glow */
+.stButton > button, [data-testid="stDownloadButton"] > button, .stDownloadButton > button {
+    border-radius: 12px;
+    border: 1px solid rgba(167,139,250,0.5);
+    background: linear-gradient(120deg, #6d5cff, #8b5cf6 50%, #00d4ff);
+    background-size: 220% 100%;
+    color: white;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(109,92,255,0.35);
+    transition: all .25s ease;
+}
+.stButton > button:hover, [data-testid="stDownloadButton"] > button:hover {
+    background-position: 100% 0;
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(109,92,255,0.5);
+}
+
+/* Inputs / file uploader glass */
+[data-testid="stFileUploader"] { border-radius: 14px; overflow: hidden; }
+[data-testid="stFileUploader"] section {
+    background: rgba(255,255,255,0.04);
+    border: 1px dashed rgba(167,139,250,0.5);
+    border-radius: 14px;
+    transition: all .25s ease;
+}
+[data-testid="stFileUploader"] section:hover { border-color: #22d3ee; background: rgba(109,92,255,0.08); }
+
+/* Selectbox / inputs */
+.stSelectbox [data-baseweb="select"] > div, .stTextInput input {
+    background: rgba(255,255,255,0.05) !important;
+    border-radius: 10px !important;
+    border-color: rgba(255,255,255,0.12) !important;
+}
+.stSelectbox [data-baseweb="popover"] ul { background: #10162b !important; }
+
+/* Radio pills */
+.stRadio [role="radiogroup"] > label {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 9999px;
+    padding: 0.25rem 0.9rem;
+    transition: all .2s ease;
+}
+.stRadio [role="radiogroup"] > label:hover { border-color: #6d5cff; }
+
+/* Tabs — animated underline */
+[data-testid="stTabs"] button {
+    color: #94a3b8 !important;
+    transition: color .2s ease, transform .2s ease;
+}
+[data-testid="stTabs"] button:hover { color: #e7ecf7 !important; transform: translateY(-1px); }
+[data-testid="stTabs"] button[aria-selected="true"] {
+    color: #a78bfa !important;
+    font-weight: 700;
+}
+[data-testid="stTabs"] [data-baseweb="tab-highlight"] {
+    background: linear-gradient(90deg, #6d5cff, #00d4ff) !important;
+    animation: gradient-x 4s linear infinite;
+}
+
+/* Expanders */
+[data-testid="stExpander"] details {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    transition: border-color .25s ease;
+}
+[data-testid="stExpander"] summary { font-weight: 600; }
+
+/* Images — forensic scanline sweep */
+[data-testid="stImage"] { position: relative; border-radius: 14px; overflow: hidden; }
+[data-testid="stImage"]::after {
+    content: "";
+    position: absolute; left: 0; right: 0; top: -15%;
+    height: 34%;
+    background: linear-gradient(180deg, transparent, rgba(0,212,255,0.22), transparent);
+    animation: scan 3.5s linear infinite;
+    pointer-events: none;
+    z-index: 2;
+}
+@keyframes scan { 0%{top:-15%} 100%{top:115%} }
+[data-testid="stImage"] img { border-radius: 14px; }
+
+/* Chart frames */
+[data-testid="stPlotlyChart"] { border-radius: 14px; overflow: hidden; }
+[data-testid="stPlotlyChart"]:hover { box-shadow: 0 10px 30px rgba(109,92,255,0.18); }
+
+/* Progress bar */
+[data-testid="stProgress"] > div > div > div > div {
+    background: linear-gradient(90deg, #6d5cff, #00d4ff, #ff4ecd);
+    background-size: 300% 100%;
+    animation: gradient-x 4s linear infinite;
+}
+
+/* Dataframes / json */
+[data-testid="stDataFrame"] { border-radius: 12px; overflow: hidden; }
+[data-testid="stJson"] { background: rgba(255,255,255,0.04) !important; border-radius: 12px !important; }
+
+/* Info / success / warning — glass toast */
+.stAlert { border-radius: 12px !important; backdrop-filter: blur(8px); }
+
+/* Disclaimer box */
+.disclaimer-box {
+    background: rgba(245, 158, 11, 0.12);
+    border-left: 4px solid #f59e0b;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #fcd34d;
+    margin-top: 1rem;
+    animation: fadeUp .6s ease .15s both;
+}
+
+/* Metric-card fallback (kept for legacy sections) */
+.metric-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 1rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    transition: transform .25s ease, box-shadow .25s ease;
+}
+.metric-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(109,92,255,0.25); }
+
+/* Fade-up entrance */
+@keyframes fadeUp { from{opacity:0; transform:translateY(16px)} to{opacity:1; transform:translateY(0)} }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #0b0f1a; }
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #6d5cff, #00d4ff);
+    border-radius: 9999px;
+}
 </style>
+""", unsafe_allow_html=True)
+
+# Floating animation orbs (background layer)
+st.markdown("""
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+""", unsafe_allow_html=True)
+
+# Cinematic JS — animated metric counters + stagger reveals
+st.markdown("""
+<script>
+(function () {
+    try {
+        function animateValue(el, target) {
+            var dur = 900, start = null;
+            var numeric = parseFloat(String(target).replace(/[^0-9.-]/g, "")) || 0;
+            var suffix = String(target).replace(/[0-9.,%]+/g, "").trim();
+            function tick(ts) {
+                if (!start) start = ts;
+                var p = Math.min((ts - start) / dur, 1);
+                var eased = 1 - Math.pow(1 - p, 3);
+                var val = numeric * eased;
+                var txt = (Number.isInteger(numeric) ? Math.round(val).toString() : val.toFixed(1)) + (suffix ? " " + suffix : "");
+                el.textContent = txt;
+                if (p < 1) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        }
+
+        var seen = new WeakSet();
+        function wireCounters() {
+            document.querySelectorAll('[data-testid="stMetricValue"]').forEach(function (el) {
+                if (seen.has(el)) return;
+                seen.add(el);
+                var target = el.textContent;
+                if (!target || /^[A-Za-z]/.test(target)) return;
+                try {
+                    animateValue(el, target);
+                } catch (e) {}
+            });
+        }
+
+        function wireReveals() {
+            var col = document.querySelector('[data-testid="stMain"]')
+                        || document.querySelector('.block-container');
+            if (!col) return;
+            col.querySelectorAll(':scope > div').forEach(function (el, i) {
+                if (getComputedStyle(el).animationName === 'none' || el.getAttribute('data-rv')) return;
+                el.setAttribute('data-rv', '1');
+                el.style.animation = 'fadeUp .6s ease ' + (i * 0.06) + 's both';
+            });
+        }
+
+        var t = null;
+        new MutationObserver(function () {
+            clearTimeout(t);
+            t = setTimeout(function () {
+                try { wireCounters(); wireReveals(); } catch (e) {}
+            }, 120);
+        }).observe(document.body, { childList: true, subtree: true });
+
+        setTimeout(function () { try { wireCounters(); wireReveals(); } catch (e) {} }, 400);
+    } catch (e) {}
+})();
+</script>
 """, unsafe_allow_html=True)
 
 # Cache Pipeline Instance in Streamlit Session
