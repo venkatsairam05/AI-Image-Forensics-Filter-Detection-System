@@ -8,6 +8,12 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109%2B-009688.svg)](https://fastapi.tiangolo.com)
 [![Vercel Ready](https://img.shields.io/badge/Vercel-Deployment%20Ready-black.svg)](https://vercel.com)
 
+## 🚀 Live Demo
+
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://ai-image-forensics-filter-detection-system-yqtcw4osi9bnvqmr5tz.streamlit.app)
+
+**Try it now:** <https://ai-image-forensics-filter-detection-system-yqtcw4osi9bnvqmr5tz.streamlit.app>
+
 ---
 
 ## 🌟 Key Features
