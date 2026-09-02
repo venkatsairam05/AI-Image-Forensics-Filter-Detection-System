@@ -508,9 +508,9 @@ if menu == "🔍 Analyze Image":
                 st.markdown("### 🖼️ Inspected Image")
                 # Show annotated face box if detected
                 if face_det.get("face_detected"):
-                    st.image(face_det["annotated_image"], caption="Detected Face ROI & Boundary", use_container_width=True)
+                    st.image(face_det["annotated_image"], caption="Detected Face ROI & Boundary", width="stretch")
                 else:
-                    st.image(pil_to_process, caption="Original Input Image", use_container_width=True)
+                    st.image(pil_to_process, caption="Original Input Image", width="stretch")
 
                 # Metadata Expandable
                 with st.expander("📋 Image Metadata & Hashes", expanded=False):
@@ -565,7 +565,7 @@ if menu == "🔍 Analyze Image":
                     showlegend=False,
                     xaxis=dict(range=[0, 100])
                 )
-                st.plotly_chart(fig_probs, use_container_width=True)
+                st.plotly_chart(fig_probs, width="stretch")
 
                 # AI Generation Category
                 st.markdown("#### 🤖 Estimated AI Architecture / Subfamily")
@@ -601,7 +601,7 @@ if menu == "🔍 Analyze Image":
                         data=pdf_bytes,
                         file_name=f"forensic_report_{res['metadata']['hashes']['sha256'][:8]}.pdf",
                         mime="application/pdf",
-                        use_container_width=True
+                        width="stretch"
                     )
                 except Exception as e:
                     st.error(f"PDF generation note: {e}")
@@ -657,17 +657,17 @@ elif menu == "💡 Explainability (Grad-CAM)":
         c1, c2, c3 = st.columns(3)
         with c1:
             st.markdown("#### 1. Input Image")
-            st.image(orig_img, use_container_width=True)
+            st.image(orig_img, width="stretch")
 
         with c2:
             st.markdown("#### 2. Grad-CAM Heatmap")
             if "heatmap_image" in explain:
-                st.image(explain["heatmap_image"], use_container_width=True)
+                st.image(explain["heatmap_image"], width="stretch")
 
         with c3:
             st.markdown("#### 3. Attention Overlay")
             if "overlay_image" in explain:
-                st.image(explain["overlay_image"], use_container_width=True)
+                st.image(explain["overlay_image"], width="stretch")
 
         st.markdown("---")
         st.markdown("### 🔬 Forensic Activation Interpretation")
@@ -683,7 +683,7 @@ elif menu == "💡 Explainability (Grad-CAM)":
         hotspots = explain.get("hotspots", [])
         if hotspots:
             st.markdown("#### 📍 Peak Activation Regions (Hotspots)")
-            st.dataframe(pd.DataFrame(hotspots), use_container_width=True)
+            st.dataframe(pd.DataFrame(hotspots), width="stretch")
 
     else:
         st.warning("⚠️ No image analyzed yet. Please run an analysis in the 'Analyze Image' tab first.")
@@ -717,14 +717,14 @@ elif menu == "🔬 Forensics Deep-Dive":
             with f_col1:
                 fft_img = forensics.get("frequency_analysis", {}).get("spectrum_image")
                 if fft_img is not None:
-                    st.image(fft_img, caption="Centered 2D FFT Magnitude Spectrum", use_container_width=True)
+                    st.image(fft_img, caption="Centered 2D FFT Magnitude Spectrum", width="stretch")
             
             with f_col2:
                 radial = forensics.get("frequency_analysis", {}).get("radial_profile", [])
                 if radial:
                     rad_df = pd.DataFrame({"Frequency Radius": list(range(len(radial))), "Spectral Power": radial})
                     fig_rad = px.line(rad_df, x="Frequency Radius", y="Spectral Power", title="Azimuthal Radial Power Distribution")
-                    st.plotly_chart(fig_rad, use_container_width=True)
+                    st.plotly_chart(fig_rad, width="stretch")
 
                 st.metric("High-Frequency Energy Ratio", f"{forensics.get('frequency_analysis', {}).get('high_frequency_ratio', 0.0)}")
                 st.metric("Spectral Anomaly Index", f"{forensics.get('frequency_analysis', {}).get('spectral_anomaly_score', 0.0)}")
@@ -738,7 +738,7 @@ elif menu == "🔬 Forensics Deep-Dive":
             with e_col1:
                 ela_img = forensics.get("compression_analysis", {}).get("ela_image")
                 if ela_img is not None:
-                    st.image(ela_img, caption="Amplified Error Level Map", use_container_width=True)
+                    st.image(ela_img, caption="Amplified Error Level Map", width="stretch")
             
             with e_col2:
                 comp = forensics.get("compression_analysis", {})
@@ -756,7 +756,7 @@ elif menu == "🔬 Forensics Deep-Dive":
             with n_col1:
                 noise_map = forensics.get("noise_analysis", {}).get("noise_map_rgb")
                 if noise_map is not None:
-                    st.image(noise_map, caption="Local Noise Inconsistency Heatmap", use_container_width=True)
+                    st.image(noise_map, caption="Local Noise Inconsistency Heatmap", width="stretch")
             
             with n_col2:
                 noise_dat = forensics.get("noise_analysis", {})
@@ -784,7 +784,7 @@ elif menu == "🔬 Forensics Deep-Dive":
                 ))
                 fig_radar = px.line_polar(radar_df, r='r', theta='theta', line_close=True)
                 fig_radar.update_traces(fill='toself')
-                st.plotly_chart(fig_radar, use_container_width=True)
+                st.plotly_chart(fig_radar, width="stretch")
             
             with t_col2:
                 st.metric("Laplacian Edge Sharpness", f"{tex.get('laplacian_sharpness', 0.0)}")
@@ -842,7 +842,7 @@ elif menu == "📂 Batch Analysis":
 
             status_text.success(f"✅ Successfully processed {len(results_list)} images!")
             batch_df = pd.DataFrame(results_list)
-            st.dataframe(batch_df, use_container_width=True)
+            st.dataframe(batch_df, width="stretch")
 
             csv_data = batch_df.to_csv(index=False).encode('utf-8')
             st.download_button(
@@ -884,7 +884,7 @@ elif menu == "📊 Model Performance & Admin":
             color_continuous_scale="Blues",
             labels=dict(x="Predicted Class", y="Actual Class")
         )
-        st.plotly_chart(fig_cm, use_container_width=True)
+        st.plotly_chart(fig_cm, width="stretch")
 
     with adm_col2:
         st.markdown("### 📦 Dataset Distribution")
@@ -896,7 +896,7 @@ elif menu == "📊 Model Performance & Admin":
         })
         fig_ds = px.bar(ds_df, x="Class", y="Sample Count", color="Class")
         fig_ds.update_layout(showlegend=False)
-        st.plotly_chart(fig_ds, use_container_width=True)
+        st.plotly_chart(fig_ds, width="stretch")
 
     # Retraining & Feedback Review
     st.markdown("---")
@@ -920,7 +920,7 @@ elif menu == "📊 Model Performance & Admin":
         st.markdown("#### 📥 Staged Feedback Queue")
         feedback_items = feedback_mgr.get_all_feedback(limit=10)
         if feedback_items:
-            st.dataframe(pd.DataFrame(feedback_items)[["id", "predicted_verdict", "user_label", "user_agrees", "verified_by_admin", "status"]], use_container_width=True)
+            st.dataframe(pd.DataFrame(feedback_items)[["id", "predicted_verdict", "user_label", "user_agrees", "verified_by_admin", "status"]], width="stretch")
         else:
             st.info("No feedback entries submitted yet.")
 
