@@ -28,19 +28,17 @@ class AIDetectionNetwork(nn.Module):
         self.num_classes = num_classes
         self.num_subfamilies = num_subfamilies
 
-        # Load backbone
         if backbone_name == "efficientnet_b0":
             base_model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
             self.features = base_model.features
             in_features = base_model.classifier[1].in_features
-            self.target_layer = self.features[-1] # For Grad-CAM hook
+            self.target_layer = self.features[-1]
         elif backbone_name == "resnet50":
             base_model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
             self.features = nn.Sequential(*list(base_model.children())[:-2])
             in_features = base_model.fc.in_features
             self.target_layer = list(self.features.children())[-1]
         else:
-            # Fallback to efficientnet_b0
             base_model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
             self.features = base_model.features
             in_features = base_model.classifier[1].in_features
@@ -48,7 +46,6 @@ class AIDetectionNetwork(nn.Module):
 
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
 
-        # Primary Classifier Head
         self.classifier = nn.Sequential(
             nn.Dropout(p=0.3),
             nn.Linear(in_features, 256),
@@ -57,7 +54,6 @@ class AIDetectionNetwork(nn.Module):
             nn.Linear(256, num_classes)
         )
 
-        # AI Subfamily Head
         self.subfamily_head = nn.Sequential(
             nn.Dropout(p=0.2),
             nn.Linear(in_features, 128),
@@ -72,11 +68,9 @@ class AIDetectionNetwork(nn.Module):
 
         primary_logits = self.classifier(flattened)
         subfamily_logits = self.subfamily_head(flattened)
-
         return primary_logits, subfamily_logits
 
     def extract_features(self, x: torch.Tensor) -> torch.Tensor:
-        """Returns convolutional feature map for explainability."""
         return self.features(x)
 
 
@@ -127,27 +121,40 @@ class AIDetector:
         ai_generated_prob = float(class_probs.get("AI_GENERATED", 0.0))
         ai_edited_prob = float(class_probs.get("AI_EDITED", 0.0))
         manipulated_prob = float(class_probs.get("MANIPULATED", 0.0))
-        synthetic_prob = ai_generated_prob + 0.6 * ai_edited_prob + 0.4 * manipulated_prob
+        filtered_prob = float(class_probs.get("FILTERED", 0.0))
 
-        # Natural-photo guardrail: if the model does not show a clear synthetic signal,
-        # prefer REAL / NATURAL to avoid false AI positives on ordinary camera photos.
-        if real_prob >= 0.45 and synthetic_prob <= 0.35:
+        synthetic_prob = ai_generated_prob + 0.7 * ai_edited_prob + 0.5 * manipulated_prob
+        strongest_synth = max(ai_generated_prob, ai_edited_prob, manipulated_prob)
+
+        # Real should only win when the evidence is clearly dominant.
+        if real_prob >= 0.75 and synthetic_prob <= 0.25:
+            predicted_class = "REAL"
+            confidence = max(real_prob, 0.75)
+            top_subfamily = "Natural Photographic Capture"
+        elif synthetic_prob >= 0.45 or strongest_synth >= 0.38:
+            if ai_generated_prob >= max(ai_edited_prob, manipulated_prob):
+                predicted_class = "AI_GENERATED"
+            elif ai_edited_prob >= manipulated_prob:
+                predicted_class = "AI_EDITED"
+            else:
+                predicted_class = "MANIPULATED"
+            confidence = float(class_probs.get(predicted_class, 0.0))
+            top_subfamily_idx = int(np.argmax(subfamily_probs))
+            top_subfamily = AI_SUBFAMILIES[top_subfamily_idx]
+        elif real_prob >= 0.55 and (real_prob - synthetic_prob) >= 0.12:
             predicted_class = "REAL"
             confidence = max(real_prob, 0.55)
             top_subfamily = "Natural Photographic Capture"
-        elif real_prob >= ai_generated_prob and real_prob > 0.25:
-            predicted_class = "REAL"
-            confidence = max(real_prob, 0.50)
-            top_subfamily = "Natural Photographic Capture"
         else:
-            # Identify top predicted class
             top_idx = int(np.argmax(primary_probs))
             predicted_class = PRIMARY_CLASSES[top_idx]
             confidence = float(primary_probs[top_idx])
-            top_subfamily_idx = int(np.argmax(subfamily_probs))
-            top_subfamily = AI_SUBFAMILIES[top_subfamily_idx]
+            if predicted_class == "REAL":
+                top_subfamily = "Natural Photographic Capture"
+            else:
+                top_subfamily_idx = int(np.argmax(subfamily_probs))
+                top_subfamily = AI_SUBFAMILIES[top_subfamily_idx]
 
-        # Subfamily predictions
         subfamily_dict = {
             AI_SUBFAMILIES[idx]: float(subfamily_probs[idx])
             for idx in range(len(AI_SUBFAMILIES))
@@ -158,12 +165,15 @@ class AIDetector:
             subfamily_dict = {key: 0.0 for key in subfamily_dict}
             subfamily_dict[top_subfamily] = 1.0
 
-        # Calculate binary AI-likeness (sum of AI_GENERATED, AI_EDITED, MANIPULATED vs REAL)
-        ai_likeness = float(class_probs.get("AI_GENERATED", 0.0) + 0.6 * class_probs.get("AI_EDITED", 0.0) + 0.4 * class_probs.get("MANIPULATED", 0.0))
+        ai_likeness = float(
+            class_probs.get("AI_GENERATED", 0.0)
+            + 0.6 * class_probs.get("AI_EDITED", 0.0)
+            + 0.4 * class_probs.get("MANIPULATED", 0.0)
+        )
         ai_likeness = min(1.0, max(0.0, ai_likeness))
 
-        # Strongly suppress AI-likeness for natural photographs when real evidence dominates.
-        if predicted_class == "REAL":
+        # Only suppress AI-likeness when REAL is genuinely dominant.
+        if predicted_class == "REAL" and real_prob >= 0.75 and synthetic_prob <= 0.25:
             ai_likeness = min(ai_likeness, 0.20)
 
         return {
