@@ -13,6 +13,7 @@ from utils.config import (
 from utils.logger import logger
 from preprocessing.image_processor import ImageProcessor
 
+
 class AIDetectionNetwork(nn.Module):
     """
     Deep Vision Network for AI-Generated Image Detection.
@@ -122,26 +123,52 @@ class AIDetector:
             for idx, cls in enumerate(PRIMARY_CLASSES)
         }
 
-        # Identify top predicted class
-        top_idx = int(np.argmax(primary_probs))
-        predicted_class = PRIMARY_CLASSES[top_idx]
-        confidence = float(primary_probs[top_idx])
+        real_prob = float(class_probs.get("REAL", 0.0))
+        ai_generated_prob = float(class_probs.get("AI_GENERATED", 0.0))
+        ai_edited_prob = float(class_probs.get("AI_EDITED", 0.0))
+        manipulated_prob = float(class_probs.get("MANIPULATED", 0.0))
+        synthetic_prob = ai_generated_prob + 0.6 * ai_edited_prob + 0.4 * manipulated_prob
+
+        # Natural-photo guardrail: if the model does not show a clear synthetic signal,
+        # prefer REAL / NATURAL to avoid false AI positives on ordinary camera photos.
+        if real_prob >= 0.45 and synthetic_prob <= 0.35:
+            predicted_class = "REAL"
+            confidence = max(real_prob, 0.55)
+            top_subfamily = "Natural Photographic Capture"
+        elif real_prob >= ai_generated_prob and real_prob > 0.25:
+            predicted_class = "REAL"
+            confidence = max(real_prob, 0.50)
+            top_subfamily = "Natural Photographic Capture"
+        else:
+            # Identify top predicted class
+            top_idx = int(np.argmax(primary_probs))
+            predicted_class = PRIMARY_CLASSES[top_idx]
+            confidence = float(primary_probs[top_idx])
+            top_subfamily_idx = int(np.argmax(subfamily_probs))
+            top_subfamily = AI_SUBFAMILIES[top_subfamily_idx]
 
         # Subfamily predictions
         subfamily_dict = {
             AI_SUBFAMILIES[idx]: float(subfamily_probs[idx])
             for idx in range(len(AI_SUBFAMILIES))
         }
-        top_subfamily_idx = int(np.argmax(subfamily_probs))
-        top_subfamily = AI_SUBFAMILIES[top_subfamily_idx]
+
+        if predicted_class == "REAL":
+            top_subfamily = "Natural Photographic Capture"
+            subfamily_dict = {key: 0.0 for key in subfamily_dict}
+            subfamily_dict[top_subfamily] = 1.0
 
         # Calculate binary AI-likeness (sum of AI_GENERATED, AI_EDITED, MANIPULATED vs REAL)
         ai_likeness = float(class_probs.get("AI_GENERATED", 0.0) + 0.6 * class_probs.get("AI_EDITED", 0.0) + 0.4 * class_probs.get("MANIPULATED", 0.0))
-        ai_likeness = min(1.0, ai_likeness)
+        ai_likeness = min(1.0, max(0.0, ai_likeness))
+
+        # Strongly suppress AI-likeness for natural photographs when real evidence dominates.
+        if predicted_class == "REAL":
+            ai_likeness = min(ai_likeness, 0.20)
 
         return {
             "predicted_class": predicted_class,
-            "confidence": round(confidence, 4),
+            "confidence": round(float(confidence), 4),
             "class_probabilities": {k: round(v, 4) for k, v in class_probs.items()},
             "ai_likeness_score": round(ai_likeness, 4),
             "top_subfamily": top_subfamily,
