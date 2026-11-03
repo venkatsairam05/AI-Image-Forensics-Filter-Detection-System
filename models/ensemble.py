@@ -36,7 +36,7 @@ class EnsembleDecisionEngine:
 
         freq_anomaly = forensics_pred.get("frequency_analysis", {}).get("spectral_anomaly_score", 0.0)
         forensic_composite = forensics_pred.get("composite_forensic_score", 0.0)
-        
+
         has_face = face_pred.get("face_detected", False)
         face_anomaly = face_pred.get("face_anomaly_score", 0.0) if has_face else 0.0
 
@@ -63,9 +63,9 @@ class EnsembleDecisionEngine:
         synthetic_index = float(np.clip(synthetic_index, 0.0, 1.0))
 
         # 4. Calibrated Ensemble Probabilities
-        final_ai_prob = float(np.clip(0.6 * raw_ai_prob + 0.4 * synthetic_index, 0.0, 1.0))
+        final_ai_prob = float(np.clip(0.7 * raw_ai_prob + 0.3 * synthetic_index, 0.0, 1.0))
         final_real_prob = float(np.clip(1.0 - synthetic_index, 0.0, 1.0))
-        
+
         # Max filter score influence
         max_filter_score = filter_pred.get("max_filter_score", 0.0)
         final_filter_prob = float(np.clip(0.5 * raw_filt_prob + 0.5 * max_filter_score, 0.0, 1.0))

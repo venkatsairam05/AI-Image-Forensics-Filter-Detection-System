@@ -2,6 +2,7 @@ import unittest
 import sys
 from pathlib import Path
 import numpy as np
+import torch
 from PIL import Image
 
 # Ensure project root in sys.path
@@ -19,6 +20,8 @@ from explainability.gradcam import GradCAMExplainer
 from reports.pdf_generator import ForensicReportGenerator
 from feedback.feedback_manager import FeedbackManager
 from pipeline import ForensicPipeline
+from utils.config import PRIMARY_CLASSES, AI_SUBFAMILIES
+
 
 class TestForensicPipeline(unittest.TestCase):
     """Unit and integration test suite for the complete AI forensics system."""
@@ -114,6 +117,57 @@ class TestForensicPipeline(unittest.TestCase):
         self.assertIsInstance(entry_id, int)
         stats = fb_mgr.get_feedback_stats()
         self.assertGreaterEqual(stats["total_submissions"], 1)
+
+
+class TestAIDetectorDecisionRules(unittest.TestCase):
+    """Regression tests for the REAL-versus-synthetic inference policy."""
+
+    @staticmethod
+    def _predict_with_probabilities(probabilities):
+        detector = AIDetector.__new__(AIDetector)
+        detector.device = "cpu"
+
+        class StubProcessor:
+            @staticmethod
+            def to_tensor(_image, device=None):
+                return torch.zeros((1, 3, 8, 8), device=device)
+
+        class StubModel:
+            def __call__(self, _tensor):
+                # Softmax(log(probabilities)) reproduces the specified test probabilities.
+                primary_logits = torch.tensor(
+                    [np.log([probabilities[label] for label in PRIMARY_CLASSES])],
+                    dtype=torch.float32,
+                )
+                subfamily_logits = torch.zeros((1, len(AI_SUBFAMILIES)), dtype=torch.float32)
+                return primary_logits, subfamily_logits
+
+        detector.processor = StubProcessor()
+        detector.model = StubModel()
+        return detector.predict(Image.new("RGB", (8, 8)))
+
+    def test_synthetic_signal_is_not_overridden_by_slightly_higher_real_score(self):
+        result = self._predict_with_probabilities({
+            "REAL": 0.50,
+            "AI_GENERATED": 0.40,
+            "AI_EDITED": 0.04,
+            "FILTERED": 0.03,
+            "MANIPULATED": 0.03,
+        })
+        self.assertEqual(result["predicted_class"], "AI_GENERATED")
+        self.assertGreater(result["ai_likeness_score"], 0.20)
+
+    def test_clear_real_signal_remains_real(self):
+        result = self._predict_with_probabilities({
+            "REAL": 0.85,
+            "AI_GENERATED": 0.04,
+            "AI_EDITED": 0.03,
+            "FILTERED": 0.05,
+            "MANIPULATED": 0.03,
+        })
+        self.assertEqual(result["predicted_class"], "REAL")
+        self.assertEqual(result["top_subfamily"], "Natural Photographic Capture")
+
 
 if __name__ == "__main__":
     unittest.main()
