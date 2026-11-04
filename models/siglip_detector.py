@@ -93,6 +93,25 @@ class SiglipDetector:
             final_ai = opensdi_ai
         else:
             final_ai = (pooler_ai + opensdi_ai) / 2.0
+
+        # Anime / illustration gate (see models/anime_detector.py).
+        # SigLIP fails on grayscale anime; an illustration is not a
+        # natural photographic capture, so it must not come out REAL.
+        anime_prob = None
+        try:
+            from models.anime_detector import AnimeStyleDetector
+            if not hasattr(self, "_anime_detector"):
+                self._anime_detector = AnimeStyleDetector()
+            anime_prob = self._anime_detector.anime_prob(img)
+        except Exception as e:
+            logger.warning("Anime gate skipped: %s", e)
+        if anime_prob is not None and anime_prob > 0.50 and opensdi_ai >= 0.40:
+            final_ai = 0.5 + 0.5 * anime_prob
+            logger.info(
+                "Anime gate fired: anime=%.3f opensdi=%.3f -> ai=%.3f",
+                anime_prob, opensdi_ai, final_ai,
+            )
+
         final_ai = float(np.clip(final_ai, 0.0, 1.0))
         final_real = float(1.0 - final_ai)
 
@@ -129,4 +148,5 @@ class SiglipDetector:
             "detector": "siglip",
             "opensdi_ai_prob": round(opensdi_ai, 4),
             "pooler_ai_prob": round(float(pooler_ai), 4),
+            "anime_prob": round(float(anime_prob), 4) if anime_prob is not None else None,
         }
