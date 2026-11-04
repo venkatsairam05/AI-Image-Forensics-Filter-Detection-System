@@ -63,8 +63,20 @@ class EnsembleDecisionEngine:
         synthetic_index = float(np.clip(synthetic_index, 0.0, 1.0))
 
         # 4. Calibrated Ensemble Probabilities
-        final_ai_prob = float(np.clip(0.6 * raw_ai_prob + 0.4 * synthetic_index, 0.0, 1.0))
-        final_real_prob = float(np.clip(1.0 - synthetic_index, 0.0, 1.0))
+        # NOTE (2026-11-04 fix): final_real used to be 1 - synthetic_index
+        # alone, ignoring raw_real_prob entirely. Since synthetic_index is
+        # usually 0.3-0.5, final_real was almost always the largest term
+        # after normalisation, so the ensemble showed Real ~45% even when
+        # the deep model said AI_GENERATED. Both sides now blend the model's
+        # own probability with the forensic index, so the ensemble follows
+        # the model instead of always favouring Real.
+        # Deep model is now trained on real data (SigLIP, see
+        # models/siglip_detector.py) and is far more reliable than the
+        # heuristic forensic signals, so it gets 85% weight; forensics
+        # still tip borderline cases. With 60/40, even a 99% AI model
+        # came out as only ~75% AI in the UI.
+        final_ai_prob = float(np.clip(0.85 * raw_ai_prob + 0.15 * synthetic_index, 0.0, 1.0))
+        final_real_prob = float(np.clip(0.85 * raw_real_prob + 0.15 * (1.0 - synthetic_index), 0.0, 1.0))
         
         # Max filter score influence
         max_filter_score = filter_pred.get("max_filter_score", 0.0)

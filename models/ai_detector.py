@@ -110,7 +110,24 @@ class AIDetector:
         """
         Runs deep learning inference on an input image.
         Returns class probabilities, predicted category, subfamily estimation, and confidence.
+        Primary detector (2026-11-04): SigLIP (see models/siglip_detector.py).
+        EfficientNet below is the fallback if SigLIP cannot load, and its
+        model is kept for Grad-CAM.
         """
+        # Lazy SigLIP load on first prediction (so app startup is not
+        # blocked by the ~350MB model download; analysis runs in a spinner).
+        if not hasattr(self, "_siglip_tried"):
+            self._siglip_tried = True
+            self._siglip = None
+            try:
+                from models.siglip_detector import SiglipDetector
+                self._siglip = SiglipDetector(device=self.device)
+                logger.info("Using SigLIP primary detector")
+            except Exception as e:
+                logger.warning(f"SigLIP detector unavailable, falling back to EfficientNet: {e}")
+        if getattr(self, "_siglip", None) is not None:
+            return self._siglip.predict(img)
+
         tensor = self.processor.to_tensor(img, device=self.device)
 
         with torch.no_grad():
@@ -123,29 +140,18 @@ class AIDetector:
             for idx, cls in enumerate(PRIMARY_CLASSES)
         }
 
-        real_prob = float(class_probs.get("REAL", 0.0))
-        ai_generated_prob = float(class_probs.get("AI_GENERATED", 0.0))
-        ai_edited_prob = float(class_probs.get("AI_EDITED", 0.0))
-        manipulated_prob = float(class_probs.get("MANIPULATED", 0.0))
-        synthetic_prob = ai_generated_prob + 0.6 * ai_edited_prob + 0.4 * manipulated_prob
-
-        # Natural-photo guardrail: if the model does not show a clear synthetic signal,
-        # prefer REAL / NATURAL to avoid false AI positives on ordinary camera photos.
-        if real_prob >= 0.45 and synthetic_prob <= 0.35:
-            predicted_class = "REAL"
-            confidence = max(real_prob, 0.55)
-            top_subfamily = "Natural Photographic Capture"
-        elif real_prob >= ai_generated_prob and real_prob > 0.25:
-            predicted_class = "REAL"
-            confidence = max(real_prob, 0.50)
-            top_subfamily = "Natural Photographic Capture"
-        else:
-            # Identify top predicted class
-            top_idx = int(np.argmax(primary_probs))
-            predicted_class = PRIMARY_CLASSES[top_idx]
-            confidence = float(primary_probs[top_idx])
-            top_subfamily_idx = int(np.argmax(subfamily_probs))
-            top_subfamily = AI_SUBFAMILIES[top_subfamily_idx]
+        # Identify top predicted class directly from the model softmax.
+        # NOTE (2026-11-04 fix): a previous "natural-photo guardrail" forced
+        # predicted_class to REAL whenever REAL was merely >= AI_GENERATED
+        # (even at ~0.25) and capped ai_likeness at 0.20. That made the
+        # predicted class, the class probabilities and the AI-likeness
+        # disagree with each other, and made uncertain AI images report as
+        # Real. The verdict must follow the probabilities, not override them.
+        top_idx = int(np.argmax(primary_probs))
+        predicted_class = PRIMARY_CLASSES[top_idx]
+        confidence = float(primary_probs[top_idx])
+        top_subfamily_idx = int(np.argmax(subfamily_probs))
+        top_subfamily = AI_SUBFAMILIES[top_subfamily_idx]
 
         # Subfamily predictions
         subfamily_dict = {
@@ -158,13 +164,11 @@ class AIDetector:
             subfamily_dict = {key: 0.0 for key in subfamily_dict}
             subfamily_dict[top_subfamily] = 1.0
 
-        # Calculate binary AI-likeness (sum of AI_GENERATED, AI_EDITED, MANIPULATED vs REAL)
+        # Calculate binary AI-likeness (sum of AI_GENERATED, AI_EDITED, MANIPULATED vs REAL).
+        # Do NOT cap it when the prediction is REAL: capping it hid the
+        # model's own synthetic signal and broke the ensemble downstream.
         ai_likeness = float(class_probs.get("AI_GENERATED", 0.0) + 0.6 * class_probs.get("AI_EDITED", 0.0) + 0.4 * class_probs.get("MANIPULATED", 0.0))
         ai_likeness = min(1.0, max(0.0, ai_likeness))
-
-        # Strongly suppress AI-likeness for natural photographs when real evidence dominates.
-        if predicted_class == "REAL":
-            ai_likeness = min(ai_likeness, 0.20)
 
         return {
             "predicted_class": predicted_class,

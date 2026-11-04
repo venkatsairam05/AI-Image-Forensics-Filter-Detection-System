@@ -8,6 +8,30 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109%2B-009688.svg)](https://fastapi.tiangolo.com)
 [![Vercel Ready](https://img.shields.io/badge/Vercel-Deployment%20Ready-black.svg)](https://vercel.com)
 
+## 🔧 2026-11-04 fix: Real vs AI probabilities were inverted
+
+The shipped model was trained only on procedural gradient/ellipse images,
+so on real photos and real AI images its softmax was near-uniform and a
+"natural-photo guardrail" plus ensemble math forced uncertain cases to
+Real. That is fixed in this commit:
+
+- `models/ai_detector.py`: guardrail and the 0.20 AI-likeness cap removed;
+  verdict now follows the model probabilities.
+- `models/ensemble.py`: Real now blends the model's own Real probability
+  (85% model / 15% forensic signals) instead of `1 - synthetic_index`.
+- `models/siglip_detector.py` (new primary detector): SigLIP2-based
+  OpenSDI detector combined with a SID-Set-trained logistic head
+  (`models_weights/siglip_pooler_logreg.npz`). Verified 2026-11-04:
+  held-out SID test 196/200 (real 96/100, synthetic 100/100), and every
+  external image tested correct — AI portrait 99.7% raw AI (84% in the
+  ensemble UI), real photos 99% raw Real (83-85% in the UI). Not 100%
+  for every possible photo: 4/100 held-out real photos were still
+  flagged AI, and no detector is proof for every image.
+- `models_weights/ai_detector.pth` is now the SID-trained EfficientNet
+  fallback (was toy weights); `training/train_real_detector.py` shows
+  how it was trained. To deploy, push this commit to the repo's main
+  branch — the Streamlit Cloud app above redeploys automatically.
+
 ## 🚀 Live Demo
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://ai-image-forensics-filter-detection-system-yqtcw4osi9bnvqmr5tz.streamlit.app)
