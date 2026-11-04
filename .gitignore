@@ -39,3 +39,6 @@ data/processed/*
 
 # SQLite DB (optional local runtime state)
 *.sqlite-journal
+
+# Local verification images (not part of the app)
+test_images/
